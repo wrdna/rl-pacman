@@ -1,0 +1,23 @@
+name:  rl-pacman
+
+channels:
+  - conda-forge
+  - pytorch
+  - nvidia
+  - defaults
+
+dependencies:
+  - python=3.10
+  - pytorch=2.2.1
+  - torchvision=0.17.1
+  - torchaudio=2.2.1
+  - cmake
+  - pandas
+  - scikit-learn
+  - scikit-image
+  - matplotlib
+  - pylint
+  - gradio
+  - gymnasium=0.29.1
+  - gymnasium-box2d
+  - pygame=2.5.2
