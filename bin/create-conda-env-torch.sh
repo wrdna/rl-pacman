@@ -13,4 +13,4 @@ conda activate $ENV_PREFIX
 echo "------------------------------"
 echo "VERIFYING PYTORCH INSTALLATION"
 echo "------------------------------"
-python3 -c "import torch;x=torch.rand(5, 3);print(x);print(torch.cuda.is_available())"
+python -c "import torch;x=torch.rand(5, 3);print(x);print(torch.cuda.is_available())"
