@@ -4,10 +4,11 @@ set -e
 
 export ENV_PREFIX=$PWD/env
 
+rm -r $ENV_PREFIX
 mkdir -p $ENV_PREFIX
 
 eval "$(conda shell.bash hook)"
-conda env create --prefix $ENV_PREFIX --file environment-torch.yml --force
+conda env create --prefix $ENV_PREFIX --file environment-torch.yml
 conda activate $ENV_PREFIX
 
 echo "------------------------------"
