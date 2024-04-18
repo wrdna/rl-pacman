@@ -3,17 +3,17 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 from pygame.locals import *
-from constants import *
-from pacman import Pacman
-from nodes import NodeGroup
-from pellets import PelletGroup
-from ghosts import GhostGroup
-from fruit import Fruit
-from pauser import Pause
-from text import TextGroup
-from sprites import LifeSprites
-from sprites import MazeSprites
-from mazedata import MazeData
+from .constants import *
+from .pacman import Pacman
+from .nodes import NodeGroup
+from .pellets import PelletGroup
+from .ghosts import GhostGroup
+from .fruit import Fruit
+from .pauser import Pause
+from .text import TextGroup
+from .sprites import LifeSprites
+from .sprites import MazeSprites
+from .mazedata import MazeData
 
 class PacManEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}
@@ -29,7 +29,7 @@ class PacManEnv(gym.Env):
         self.fruit = None
         self.pause = Pause(True)
         self.level = 0
-        self.lives = 3
+        self.lives = 1
         self.score = 0
         self.textgroup = TextGroup()
         self.lifesprites = LifeSprites(self.lives)
@@ -44,13 +44,15 @@ class PacManEnv(gym.Env):
         self.max_pellets = 244 
         self.coord_shape = 2
         self.observation_space = spaces.Dict({
-            'lives': spaces.Discrete(1),
+            'lives': spaces.Discrete(self.lives),
             'pacman_pos': spaces.Box(low=0, high=SCREENWIDTH, shape=(self.coord_shape,)),
             'pellet_positions': spaces.Box(low=0, high=SCREENWIDTH, shape=(self.max_pellets * self.coord_shape,)),
-            'num_pellets': spaces.Discrete(1),
+            'num_pellets': spaces.Discrete(self.max_pellets + 1),
             'ghost_pos': spaces.Box(low=0, high=SCREENWIDTH, shape=(4 * self.coord_shape,)),
-            'ghost_status': spaces.Discrete(4),
+            'ghost_status': spaces.MultiDiscrete([4, 4, 4, 4]),
         })
+        for key, value in self.observation_space.items():
+            print(f"Key: {key}, Value: {value}")
 
         self.action_space = spaces.Discrete(4)
 
@@ -62,22 +64,83 @@ class PacManEnv(gym.Env):
         }
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
-        self.render_mode = 'human' 
+        self.render_mode = "human" 
         self.window = None
+
+        self.mazedata.loadMaze(self.level)
+        self.mazesprites = MazeSprites("pacmangym/pacmangym/envs/"+self.mazedata.obj.name+".txt", "pacmangym/pacmangym/envs/"+self.mazedata.obj.name+"_rotation.txt")
+        self.setBackground()
+        self.nodes = NodeGroup("pacmangym/pacmangym/envs/"+self.mazedata.obj.name+".txt")
+        self.mazedata.obj.setPortalPairs(self.nodes)
+        self.mazedata.obj.connectHomeNodes(self.nodes)
+        self.pacman = Pacman(self.nodes.getNodeFromTiles(*self.mazedata.obj.pacmanStart))
+        self.pellets = PelletGroup("pacmangym/pacmangym/envs/"+self.mazedata.obj.name+".txt")
+        self.ghosts = GhostGroup(self.nodes.getStartTempNode(), self.pacman)
+
+        self.ghosts.pinky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(2, 3)))
+        self.ghosts.inky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(0, 3)))
+        self.ghosts.clyde.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(4, 3)))
+        self.ghosts.setSpawnNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(2, 3)))
+        self.ghosts.blinky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(2, 0)))
+
+        self.nodes.denyHomeAccess(self.pacman)
+        self.nodes.denyHomeAccessList(self.ghosts)
+        self.ghosts.inky.startNode.denyAccess(RIGHT, self.ghosts.inky)
+        self.ghosts.clyde.startNode.denyAccess(LEFT, self.ghosts.clyde)
+        self.mazedata.obj.denyGhostsAccess(self.ghosts, self.nodes)
+        self.pause.paused = False
         #self.clock = None
 
     def _get_obs(self):
-        return {
+        pacman_pos = np.array([self.pacman.position.x, self.pacman.position.y], dtype='float32')
+        pellet_positions = []
+        for pellet in self.pellets.pelletList:
+            pellet_position = np.array([np.float32(pellet.position.x), np.float32(pellet.position.y)])
+            pellet_positions.append(pellet_position)
+        pellet_positions = np.array(pellet_positions, dtype='float32')
+        num_pellets = len(self.pellets.pelletList)
+        ghost_pos = np.array([
+            np.array([self.ghosts.pinky.position.x, self.ghosts.pinky.position.y]),
+            np.array([self.ghosts.inky.position.x, self.ghosts.inky.position.y]),
+            np.array([self.ghosts.blinky.position.x, self.ghosts.blinky.position.y]),
+            np.array([self.ghosts.clyde.position.x, self.ghosts.clyde.position.y])
+        ], dtype='float32')
+        ghost_status = np.array([
+            int(self.ghosts.pinky.mode.current),
+            int(self.ghosts.inky.mode.current),
+            int(self.ghosts.blinky.mode.current),
+            int(self.ghosts.clyde.mode.current),
+        ])
+
+        observation = {
             'lives': self.lives,
-            'pacman_pos': self.pacman.position,
-            'pellet_positions': [pellet.position for pellet in self.pellets.pelletList],
-            'num_pellets': len(self.pellets.pelletList),
-            'ghost_pos': [self.ghosts.pinky.position, self.ghosts.inky.position, self.ghosts.blinky.position, self.ghosts.clyde.position], 
-            'ghost_status': [self.ghosts.pinky.mode, self.ghosts.inky.mode, self.ghosts.blinky.mode, self.ghosts.clyde.mode]
+            'pacman_pos': pacman_pos,
+            'pellet_positions': pellet_positions,
+            'num_pellets': num_pellets,
+            'ghost_pos': ghost_pos,
+            'ghost_status': ghost_status
         }
+        for key, value in observation.items():
+            if key is not 'pellet_positions':
+                pass
+                #print(f"Key: {key}, Value: {value}")
+
+        return observation
+
+    #def _get_obs(self):
+    #    return {
+    #        'lives': self.lives,
+    #        'pacman_pos': np.array(self.pacman.position),
+    #        'pellet_positions': np.array([np.array([np.float32(pellet.position.x), np.float32(pellet.position.y)]) for pellet in self.pellets.pelletList], dtype='float32'),
+    #        'num_pellets': len(self.pellets.pelletList),
+    #        'ghost_pos': np.array([np.array(self.ghosts.pinky.position), np.array(self.ghosts.inky.position), np.array(self.ghosts.blinky.position), np.array(self.ghosts.clyde.position)]), 
+    #        'ghost_status': np.array([self.ghosts.pinky.mode, self.ghosts.inky.mode, self.ghosts.blinky.mode, self.ghosts.clyde.mode]),
+    #    }
 
     def _get_info(self):
-        return
+        return {
+            "score": self.score,
+        }
 
     def reset(self, seed=None):
         observation = self._get_obs()
@@ -88,9 +151,16 @@ class PacManEnv(gym.Env):
         reward = 0
         old_lives = self.lives
         old_pellets = self.pellets.numEaten
-        self.update()
+        
+
         direction = self._action_to_direction[action]
-        self.pacman.direction = direction
+
+        if direction in self.pacman.validDirections():
+            print(self.pacman.validDirections())
+            self.pacman.direction = direction
+        #self.pacman.setBetweenNodes(direction)
+        
+        self.update()
 
         if old_pellets < self.pellets.numEaten:
             reward += 1
@@ -98,7 +168,7 @@ class PacManEnv(gym.Env):
         if old_lives > self.lives:
             reward -= 10
 
-        if self.lives == 0 or self.pellets.isEmpty():
+        if self.lives <= 0 or self.pellets.isEmpty():
             terminated = True 
         else:
             terminated = False
@@ -108,7 +178,7 @@ class PacManEnv(gym.Env):
         
         if self.render_mode == "human":
             self._render_frame()
-
+        
         return observation, reward, terminated, False, info
 
 
@@ -337,8 +407,6 @@ class PacManEnv(gym.Env):
         if self.screen is not None:
             pygame.display.quit()
             pygame.quit()
-
-
 
 if __name__ == "__main__":
     game = PacManEnv()

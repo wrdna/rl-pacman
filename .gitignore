@@ -1,2 +1,5 @@
 env/
 src/game/__pycache__/
+src/pacmangym/pacmangym.egg-info/*
+src/pacmangym/pacmangym/__pycache__/*
+src/pacmangym/pacmangym/envs/__pycache__/*
