@@ -223,7 +223,7 @@ class PacManEnv(gym.Env):
                     self.updateScore(ghost.points)                  
                     self.textgroup.addText(str(ghost.points), WHITE, ghost.position.x, ghost.position.y, 8, time=1)
                     self.ghosts.updatePoints()
-                    self.pause.setPause(pauseTime=1, func=self.showEntities)
+                    self.pause.setPause(pauseTime=0, func=self.showEntities)
                     ghost.startSpawn()
                     self.nodes.allowHomeAccess(ghost)
                 elif ghost.mode.current is not SPAWN:

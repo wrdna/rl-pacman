@@ -16,7 +16,7 @@ from .sprites import MazeSprites
 from .mazedata import MazeData
 
 class PacManEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps":30}
 
     def __init__(self, render_mode=None):
         pygame.init()
@@ -52,7 +52,8 @@ class PacManEnv(gym.Env):
             'ghost_status': spaces.MultiDiscrete([4, 4, 4, 4]),
         })
         for key, value in self.observation_space.items():
-            print(f"Key: {key}, Value: {value}")
+            #print(f"Key: {key}, Value: {value}")
+            pass
 
         self.action_space = spaces.Discrete(4)
 
@@ -64,7 +65,7 @@ class PacManEnv(gym.Env):
         }
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
-        self.render_mode = "human" 
+        self.render_mode = render_mode 
         self.window = None
 
         self.mazedata.loadMaze(self.level)
@@ -89,7 +90,6 @@ class PacManEnv(gym.Env):
         self.ghosts.clyde.startNode.denyAccess(LEFT, self.ghosts.clyde)
         self.mazedata.obj.denyGhostsAccess(self.ghosts, self.nodes)
         self.pause.paused = False
-        #self.clock = None
 
     def _get_obs(self):
         pacman_pos = np.array([self.pacman.position.x, self.pacman.position.y], dtype='float32')
@@ -121,9 +121,9 @@ class PacManEnv(gym.Env):
             'ghost_status': ghost_status
         }
         for key, value in observation.items():
-            if key is not 'pellet_positions':
-                pass
+            if key is 'pacman_pos':
                 #print(f"Key: {key}, Value: {value}")
+                pass
 
         return observation
 
@@ -179,7 +179,7 @@ class PacManEnv(gym.Env):
             reward += 1
         if old_lives > self.lives:
             reward -= 10
-        print(reward)
+        #print(reward)
 
         # Termination states
         if self.lives <= 0 or self.pellets.isEmpty():
@@ -231,10 +231,12 @@ class PacManEnv(gym.Env):
         self.pause.paused = False
 
     def update(self):
-        if self.render_mode == 'human':
-            dt = self.clock.tick(self.metadata["render_fps"]) / 1000.0
-        else: 
-            dt = 0 
+        #if self.render_mode == 'human':
+        dt = self.clock.tick(self.metadata["render_fps"]) / 1000.0
+        print(dt)
+        print(self.clock.get_time())
+        #else: 
+        #dt = 0.5 
 
         self.textgroup.update(dt)
         self.pellets.update(dt)
@@ -265,7 +267,7 @@ class PacManEnv(gym.Env):
         if afterPauseMethod is not None:
             afterPauseMethod()
         self.checkEvents()
-        self._render_frame()
+        #self._render_frame()
 
     def render(self):
         if self.render_mode == "rgb_array":
@@ -351,7 +353,7 @@ class PacManEnv(gym.Env):
                     self.updateScore(ghost.points)                  
                     self.textgroup.addText(str(ghost.points), WHITE, ghost.position.x, ghost.position.y, 8, time=1)
                     self.ghosts.updatePoints()
-                    self.pause.setPause(pauseTime=1, func=self.showEntities)
+                    self.pause.setPause(pauseTime=0, func=self.showEntities)
                     ghost.startSpawn()
                     self.nodes.allowHomeAccess(ghost)
                 elif ghost.mode.current is not SPAWN:
@@ -362,6 +364,7 @@ class PacManEnv(gym.Env):
                         self.ghosts.hide()
                         if self.lives <= 0:
                             self.textgroup.showText(GAMEOVERTXT)
+                            exit()
                             # TODO: done signal from here
                             #self.pause.setPause(pauseTime=3, func=self.restartGame)
                         else:
