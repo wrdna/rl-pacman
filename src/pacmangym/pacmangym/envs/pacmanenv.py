@@ -25,11 +25,12 @@ class PacManEnv(gym.Env):
         self.background = None
         self.background_norm = None
         self.background_flash = None
-        self.clock = pygame.time.Clock()
+        #self.clock = pygame.time.Clock()
         self.fruit = None
         self.pause = Pause(True)
         self.level = 0
-        self.lives = 1
+        self.start_lives = 3
+        self.lives = self.start_lives 
         self.score = 0
         self.textgroup = TextGroup()
         self.lifesprites = LifeSprites(self.lives)
@@ -40,7 +41,6 @@ class PacManEnv(gym.Env):
         self.fruitNode = None
         self.mazedata = MazeData()
 
-        #self.window_size = SCREENSIZE
         self.max_pellets = 244 
         self.coord_shape = 2
         self.observation_space = spaces.Dict({
@@ -143,6 +143,9 @@ class PacManEnv(gym.Env):
         }
 
     def reset(self, seed=None):
+        # needs to reset environment
+        self.restartGame()
+
         observation = self._get_obs()
         info = self._get_info()
         return observation, info
@@ -179,7 +182,6 @@ class PacManEnv(gym.Env):
             reward += 1
         if old_lives > self.lives:
             reward -= 10
-        #print(reward)
 
         # Termination states
         if self.lives <= 0 or self.pellets.isEmpty():
@@ -208,13 +210,13 @@ class PacManEnv(gym.Env):
 
     def startGame(self):      
         self.mazedata.loadMaze(self.level)
-        self.mazesprites = MazeSprites(self.mazedata.obj.name+".txt", self.mazedata.obj.name+"_rotation.txt")
+        self.mazesprites = MazeSprites("pacmangym/pacmangym/envs/"+self.mazedata.obj.name+".txt", "pacmangym/pacmangym/envs/"+self.mazedata.obj.name+"_rotation.txt")
         self.setBackground()
-        self.nodes = NodeGroup(self.mazedata.obj.name+".txt")
+        self.nodes = NodeGroup("pacmangym/pacmangym/envs/"+self.mazedata.obj.name+".txt")
         self.mazedata.obj.setPortalPairs(self.nodes)
         self.mazedata.obj.connectHomeNodes(self.nodes)
         self.pacman = Pacman(self.nodes.getNodeFromTiles(*self.mazedata.obj.pacmanStart))
-        self.pellets = PelletGroup(self.mazedata.obj.name+".txt")
+        self.pellets = PelletGroup("pacmangym/pacmangym/envs/"+self.mazedata.obj.name+".txt")
         self.ghosts = GhostGroup(self.nodes.getStartTempNode(), self.pacman)
 
         self.ghosts.pinky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(2, 3)))
@@ -231,12 +233,11 @@ class PacManEnv(gym.Env):
         self.pause.paused = False
 
     def update(self):
-        #if self.render_mode == 'human':
-        dt = self.clock.tick(self.metadata["render_fps"]) / 1000.0
-        print(dt)
-        print(self.clock.get_time())
-        #else: 
-        #dt = 0.5 
+        #self.clock.tick(self.metadata["render_fps"]) / 1000.0
+        if self.render_mode == 'human':
+            dt = self.metadata["render_fps"] / 1000.0 
+        else:
+            dt = 0
 
         self.textgroup.update(dt)
         self.pellets.update(dt)
@@ -267,7 +268,6 @@ class PacManEnv(gym.Env):
         if afterPauseMethod is not None:
             afterPauseMethod()
         self.checkEvents()
-        #self._render_frame()
 
     def render(self):
         if self.render_mode == "rgb_array":
@@ -276,10 +276,11 @@ class PacManEnv(gym.Env):
     def _render_frame(self):
         if self.render_mode == "human":
             if self.screen_shown == False:
+                self.clock = pygame.time.Clock()
                 self.screen_shown = True
                 self.screen = pygame.display.set_mode(SCREENSIZE, 0, 32)
             self.screen.blit(self.background, (0, 0))
-            self.nodes.render(self.screen)
+            #self.nodes.render(self.screen)
             self.pellets.render(self.screen)
             if self.fruit is not None:
                 self.fruit.render(self.screen)
@@ -298,7 +299,7 @@ class PacManEnv(gym.Env):
                 self.screen.blit(self.fruitCaptured[i], (x, y))
 
             pygame.display.update()
-            #self.clock.tick(self.metadata["render_fps"])
+            self.clock.tick(self.metadata["render_fps"])
         else:
             return np.transpose(
                 np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
@@ -364,7 +365,6 @@ class PacManEnv(gym.Env):
                         self.ghosts.hide()
                         if self.lives <= 0:
                             self.textgroup.showText(GAMEOVERTXT)
-                            exit()
                             # TODO: done signal from here
                             #self.pause.setPause(pauseTime=3, func=self.restartGame)
                         else:
@@ -375,7 +375,6 @@ class PacManEnv(gym.Env):
         if self.pellets.numEaten == 50 or self.pellets.numEaten == 140:
             if self.fruit is None:
                 self.fruit = Fruit(self.nodes.getNodeFromTiles(9, 20), self.level)
-                print(self.fruit)
         if self.fruit is not None:
             if self.pacman.collideCheck(self.fruit):
                 self.updateScore(self.fruit.points)
@@ -407,9 +406,9 @@ class PacManEnv(gym.Env):
         self.textgroup.updateLevel(self.level)
 
     def restartGame(self):
-        self.lives = 5
+        self.lives = self.start_lives 
         self.level = 0
-        self.pause.paused = True
+        self.pause.paused = False 
         self.fruit = None
         self.startGame()
         self.score = 0
