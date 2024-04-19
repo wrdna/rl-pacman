@@ -25,7 +25,7 @@ class Entity(object):
         self.position = self.node.position.copy()
 
     def update(self, dt):
-        self.position += self.directions[self.direction]*self.speed
+        self.position += self.directions[self.direction]*self.speed*dt
          
         if self.overshotTarget():
             self.node = self.target

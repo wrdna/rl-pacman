@@ -152,22 +152,36 @@ class PacManEnv(gym.Env):
         old_lives = self.lives
         old_pellets = self.pellets.numEaten
         
-
+        # Handling pacman movement
         direction = self._action_to_direction[action]
+        if self.pacman.overshotTarget():
+            self.pacman.node = self.pacman.target
+            if self.pacman.node.neighbors[PORTAL] is not None:
+                self.pacman.node = self.pacman.node.neighbors[PORTAL]
+            self.pacman.target = self.pacman.getNewTarget(direction)
+            if self.pacman.target is not self.pacman.node:
+                self.pacman.direction = direction
+            else:
+                self.pacman.target = self.pacman.getNewTarget(self.pacman.direction)
 
-        if direction in self.pacman.validDirections():
-            print(self.pacman.validDirections())
-            self.pacman.direction = direction
-        #self.pacman.setBetweenNodes(direction)
+            if self.pacman.target is self.pacman.node:
+                self.pacman.direction = STOP
+            self.pacman.setPosition()
+        else: 
+            if self.pacman.oppositeDirection(direction):
+                self.pacman.reverseDirection()
         
+        # Updating game state
         self.update()
-
+        
+        # Rewards
         if old_pellets < self.pellets.numEaten:
             reward += 1
-        
         if old_lives > self.lives:
             reward -= 10
+        print(reward)
 
+        # Termination states
         if self.lives <= 0 or self.pellets.isEmpty():
             terminated = True 
         else:
@@ -217,7 +231,11 @@ class PacManEnv(gym.Env):
         self.pause.paused = False
 
     def update(self):
-        dt = self.clock.tick(self.metadata["render_fps"]) / 1000.0
+        if self.render_mode == 'human':
+            dt = self.clock.tick(self.metadata["render_fps"]) / 1000.0
+        else: 
+            dt = 0 
+
         self.textgroup.update(dt)
         self.pellets.update(dt)
         if not self.pause.paused:
@@ -248,6 +266,46 @@ class PacManEnv(gym.Env):
             afterPauseMethod()
         self.checkEvents()
         self._render_frame()
+
+    def render(self):
+        if self.render_mode == "rgb_array":
+            return self._render_frame()
+
+    def _render_frame(self):
+        if self.render_mode == "human":
+            if self.screen_shown == False:
+                self.screen_shown = True
+                self.screen = pygame.display.set_mode(SCREENSIZE, 0, 32)
+            self.screen.blit(self.background, (0, 0))
+            self.nodes.render(self.screen)
+            self.pellets.render(self.screen)
+            if self.fruit is not None:
+                self.fruit.render(self.screen)
+            self.pacman.render(self.screen)
+            self.ghosts.render(self.screen)
+            self.textgroup.render(self.screen)
+
+            for i in range(len(self.lifesprites.images)):
+                x = self.lifesprites.images[i].get_width() * i
+                y = SCREENHEIGHT - self.lifesprites.images[i].get_height()
+                self.screen.blit(self.lifesprites.images[i], (x, y))
+
+            for i in range(len(self.fruitCaptured)):
+                x = SCREENWIDTH - self.fruitCaptured[i].get_width() * (i+1)
+                y = SCREENHEIGHT - self.fruitCaptured[i].get_height()
+                self.screen.blit(self.fruitCaptured[i], (x, y))
+
+            pygame.display.update()
+            #self.clock.tick(self.metadata["render_fps"])
+        else:
+            return np.transpose(
+                np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
+            )
+
+    def close(self):
+        if self.screen is not None:
+            pygame.display.quit()
+            pygame.quit()
 
     def checkEvents(self):
         for event in pygame.event.get():
@@ -368,45 +426,6 @@ class PacManEnv(gym.Env):
     def updateScore(self, points):
         self.score += points
         self.textgroup.updateScore(self.score)
-
-    def render(self):
-        if self.render_mode == "rgb_array":
-            return self._render_frame()
-
-    def _render_frame(self):
-        if self.render_mode == "human":
-            if self.screen_shown == False:
-                self.screen_shown = True
-                self.screen = pygame.display.set_mode(SCREENSIZE, 0, 32)
-            self.screen.blit(self.background, (0, 0))
-            #self.nodes.render(self.screen)
-            self.pellets.render(self.screen)
-            if self.fruit is not None:
-                self.fruit.render(self.screen)
-            self.pacman.render(self.screen)
-            self.ghosts.render(self.screen)
-            self.textgroup.render(self.screen)
-
-            for i in range(len(self.lifesprites.images)):
-                x = self.lifesprites.images[i].get_width() * i
-                y = SCREENHEIGHT - self.lifesprites.images[i].get_height()
-                self.screen.blit(self.lifesprites.images[i], (x, y))
-
-            for i in range(len(self.fruitCaptured)):
-                x = SCREENWIDTH - self.fruitCaptured[i].get_width() * (i+1)
-                y = SCREENHEIGHT - self.fruitCaptured[i].get_height()
-                self.screen.blit(self.fruitCaptured[i], (x, y))
-
-            pygame.display.update()
-            #self.clock.tick(self.metadata["render_fps"])
-        else:
-            return np.transpose(
-                np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
-            )
-    def close(self):
-        if self.screen is not None:
-            pygame.display.quit()
-            pygame.quit()
 
 if __name__ == "__main__":
     game = PacManEnv()

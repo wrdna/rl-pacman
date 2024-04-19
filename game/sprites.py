@@ -40,24 +40,24 @@ class PacmanSprites(Spritesheet):
         self.animations[DEATH] = Animator(((0, 12), (2, 12), (4, 12), (6, 12), (8, 12), (10, 12), (12, 12), (14, 12), (16, 12), (18, 12), (20, 12)), speed=6, loop=False)
 
     def update(self, dt=None):
-        if dt is not None:
-            if self.entity.alive == True:
-                if self.entity.direction == LEFT:
-                    self.entity.image = self.getImage(*self.animations[LEFT].update(dt))
-                    self.stopimage = (8, 0)
-                elif self.entity.direction == RIGHT:
-                    self.entity.image = self.getImage(*self.animations[RIGHT].update(dt))
-                    self.stopimage = (10, 0)
-                elif self.entity.direction == DOWN:
-                    self.entity.image = self.getImage(*self.animations[DOWN].update(dt))
-                    self.stopimage = (8, 2)
-                elif self.entity.direction == UP:
-                    self.entity.image = self.getImage(*self.animations[UP].update(dt))
-                    self.stopimage = (10, 2)
-                elif self.entity.direction == STOP:
-                    self.entity.image = self.getImage(*self.stopimage)
-            else:
-                self.entity.image = self.getImage(*self.animations[DEATH].update(dt))
+        #if dt is not None:
+        if self.entity.alive == True:
+            if self.entity.direction == LEFT:
+                self.entity.image = self.getImage(*self.animations[LEFT].update(dt))
+                self.stopimage = (8, 0)
+            elif self.entity.direction == RIGHT:
+                self.entity.image = self.getImage(*self.animations[RIGHT].update(dt))
+                self.stopimage = (10, 0)
+            elif self.entity.direction == DOWN:
+                self.entity.image = self.getImage(*self.animations[DOWN].update(dt))
+                self.stopimage = (8, 2)
+            elif self.entity.direction == UP:
+                self.entity.image = self.getImage(*self.animations[UP].update(dt))
+                self.stopimage = (10, 2)
+            elif self.entity.direction == STOP:
+                self.entity.image = self.getImage(*self.stopimage)
+        else:
+            self.entity.image = self.getImage(*self.animations[DEATH].update(dt))
 
     def reset(self):
         for key in list(self.animations.keys()):

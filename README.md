@@ -8,5 +8,6 @@ To install environment:
 Activating environment:
 ```conda activate env/```
 
-
+Installing pacmangym gymnasium environment locally (inside src):
+```pip install -e pacmangym```
 
