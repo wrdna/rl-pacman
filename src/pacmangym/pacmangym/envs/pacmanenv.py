@@ -29,7 +29,7 @@ class PacManEnv(gym.Env):
         self.fruit = None
         self.pause = Pause(True)
         self.level = 0
-        self.start_lives = 3
+        self.start_lives = 1 
         self.lives = self.start_lives 
         self.score = 0
         self.textgroup = TextGroup()
@@ -44,13 +44,14 @@ class PacManEnv(gym.Env):
         self.max_pellets = 244 
         self.coord_shape = 2
         self.observation_space = spaces.Dict({
-            'lives': spaces.Discrete(self.lives),
+            'lives': spaces.Discrete(self.lives+1),
             'pacman_pos': spaces.Box(low=0, high=SCREENWIDTH, shape=(self.coord_shape,)),
             'pellet_positions': spaces.Box(low=0, high=SCREENWIDTH, shape=(self.max_pellets * self.coord_shape,)),
-            'num_pellets': spaces.Discrete(self.max_pellets + 1),
+            'num_pellets': spaces.Discrete(self.max_pellets+1),
             'ghost_pos': spaces.Box(low=0, high=SCREENWIDTH, shape=(4 * self.coord_shape,)),
             'ghost_status': spaces.MultiDiscrete([4, 4, 4, 4]),
         })
+
         for key, value in self.observation_space.items():
             #print(f"Key: {key}, Value: {value}")
             pass
@@ -90,14 +91,15 @@ class PacManEnv(gym.Env):
         self.ghosts.clyde.startNode.denyAccess(LEFT, self.ghosts.clyde)
         self.mazedata.obj.denyGhostsAccess(self.ghosts, self.nodes)
         self.pause.paused = False
-
+    
+    # Get the observation space of the current state
     def _get_obs(self):
         pacman_pos = np.array([self.pacman.position.x, self.pacman.position.y], dtype='float32')
-        pellet_positions = []
-        for pellet in self.pellets.pelletList:
-            pellet_position = np.array([np.float32(pellet.position.x), np.float32(pellet.position.y)])
-            pellet_positions.append(pellet_position)
-        pellet_positions = np.array(pellet_positions, dtype='float32')
+        pellet_positions = np.zeros((self.max_pellets, self.coord_shape,), dtype='float32') 
+
+        for i in range(self.max_pellets):
+            pellet_positions[i] = np.array([np.float32(self.pellets.pelletList[i].position.x), np.float32(self.pellets.pelletList[i].position.y)])
+
         num_pellets = len(self.pellets.pelletList)
         ghost_pos = np.array([
             np.array([self.ghosts.pinky.position.x, self.ghosts.pinky.position.y]),
@@ -120,32 +122,24 @@ class PacManEnv(gym.Env):
             'ghost_pos': ghost_pos,
             'ghost_status': ghost_status
         }
-        for key, value in observation.items():
-            if key is 'pacman_pos':
-                #print(f"Key: {key}, Value: {value}")
-                pass
+        #for key, value in observation.items():
+        #    if key is 'pacman_pos':
+        #        #print(f"Key: {key}, Value: {value}")
+        #        pass
+
 
         return observation
 
-    #def _get_obs(self):
-    #    return {
-    #        'lives': self.lives,
-    #        'pacman_pos': np.array(self.pacman.position),
-    #        'pellet_positions': np.array([np.array([np.float32(pellet.position.x), np.float32(pellet.position.y)]) for pellet in self.pellets.pelletList], dtype='float32'),
-    #        'num_pellets': len(self.pellets.pelletList),
-    #        'ghost_pos': np.array([np.array(self.ghosts.pinky.position), np.array(self.ghosts.inky.position), np.array(self.ghosts.blinky.position), np.array(self.ghosts.clyde.position)]), 
-    #        'ghost_status': np.array([self.ghosts.pinky.mode, self.ghosts.inky.mode, self.ghosts.blinky.mode, self.ghosts.clyde.mode]),
-    #    }
-
     def _get_info(self):
+        print(self.score)
         return {
             "score": self.score,
         }
 
-    def reset(self, seed=None):
+    def reset(self, seed=None, options=None):
         # needs to reset environment
         self.restartGame()
-
+        print('reset')
         observation = self._get_obs()
         info = self._get_info()
         return observation, info
@@ -179,9 +173,14 @@ class PacManEnv(gym.Env):
         
         # Rewards
         if old_pellets < self.pellets.numEaten:
-            reward += 1
+            reward += 4 
+        #else:
+        #    reward -= 2 
+
         if old_lives > self.lives:
-            reward -= 10
+            reward -= 50 
+        else:
+            reward += 1
 
         # Termination states
         if self.lives <= 0 or self.pellets.isEmpty():
@@ -335,7 +334,9 @@ class PacManEnv(gym.Env):
                 self.ghosts.inky.startNode.allowAccess(RIGHT, self.ghosts.inky)
             if self.pellets.numEaten == 70:
                 self.ghosts.clyde.startNode.allowAccess(LEFT, self.ghosts.clyde)
-            self.pellets.pelletList.remove(pellet)
+            #self.pellets.pelletList.remove(pellet)
+            pellet.position.x = -1
+            pellet.position.y = -1
             if pellet.name == POWERPELLET:
                 self.ghosts.startFreight()
             if self.pellets.isEmpty():

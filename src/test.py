@@ -220,7 +220,7 @@ def main():
         )
     
     else:
-        envs = gym.vector.make("LunarLander-v2", num_envs=n_envs, max_episode_steps=600, render_mode="human")
+        envs = gym.vector.make("LunarLander-v2", num_envs=n_envs, max_episode_steps=600, render_mode='human')
 
     
     
