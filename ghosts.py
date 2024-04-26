@@ -63,6 +63,10 @@ class Ghost(Entity):
         self.homeNode.denyAccess(DOWN, self)
 
 
+    def drawPath(self, screen):
+        pygame.draw.line(screen, self.color, (self.position.x, self.position.y), (self.goal.x, self.goal.y))
+        pygame.display.flip()
+
 
 
 class Blinky(Ghost):
@@ -169,4 +173,5 @@ class GhostGroup(object):
     def render(self, screen):
         for ghost in self:
             ghost.render(screen)
+            ghost.drawPath(screen)
 

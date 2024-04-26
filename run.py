@@ -59,8 +59,8 @@ class GameController(object):
         self.pacman = Pacman(self.nodes.getNodeFromTiles(*self.mazedata.obj.pacmanStart))
         self.pellets = PelletGroup(self.mazedata.obj.name+".txt")
 
-        # self.setupGhosts()
-        self.ghosts = False
+        self.setupGhosts()
+        # self.ghosts = False
 
         self.nodes.denyHomeAccess(self.pacman)
 
