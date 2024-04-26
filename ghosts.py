@@ -5,6 +5,7 @@ from constants import *
 from entity import Entity
 from modes import ModeController
 from sprites import GhostSprites
+from datastructures import PriorityQueue
 
 class Ghost(Entity):
     def __init__(self, node, pacman=None, blinky=None):
@@ -17,6 +18,10 @@ class Ghost(Entity):
         self.mode = ModeController(self)
         self.blinky = blinky
         self.homeNode = node
+
+        # Path Drawing Functions
+        self.linear = True
+        self.draw = True
 
     def reset(self):
         Entity.reset(self)
@@ -62,10 +67,53 @@ class Ghost(Entity):
         self.directionMethod = self.goalDirection
         self.homeNode.denyAccess(DOWN, self)
 
-
     def drawPath(self, screen):
-        pygame.draw.line(screen, self.color, (self.position.x, self.position.y), (self.goal.x, self.goal.y))
-        pygame.display.flip()
+        if not self.draw: return
+        if self.linear:
+            pygame.draw.line(screen, self.color, (self.position.x, self.position.y), (self.goal.x, self.goal.y), width=2)
+            pygame.display.flip()
+        else:
+            path = self.findNodePath()
+            if path != None:
+                start = path[0]
+                pygame.draw.line(screen, self.color, (self.position.x, self.position.y), (start.position.x, start.position.y), width=2)
+                pygame.display.flip()
+                for node in path[1:]:
+                    pygame.draw.line(screen, self.color, (start.position.x, start.position.y), (node.position.x, node.position.y), width=2) 
+                    pygame.display.flip()
+
+    def findNodePath(self):
+        q = PriorityQueue()
+        max_search = 30
+        # (g, node, node[])
+        q.Enqueue((0, self.node, []))
+        while not q.Empty():
+            node = q.Dequeue()
+            # Destructure
+            g = node[0]
+            n = node[1]
+            node[2].append(n)
+            path = node[2]
+            if len(path) > max_search:
+                return None
+            # print(f'g: {g}\nnode:{n}\npath:{path}')
+            # print(f"Node x: {n.position.x} y: {n.position.y}")
+            # print(f"Goal x:{self.goal.x} y: {self.goal.y}")
+            # Found
+            if n.position.x == self.goal.x and n.position.y == self.goal.y:
+                print(f'Found! {len(path)}')
+                # Draw Lines Between The Nodes
+                return path
+            g += 1
+            if n.neighbors[UP] != None:
+                q.Enqueue((g, n.neighbors[UP], path))
+            if n.neighbors[DOWN] != None:
+                q.Enqueue((g, n.neighbors[DOWN], path))
+            if n.neighbors[RIGHT] != None:
+                q.Enqueue((g, n.neighbors[RIGHT], path))
+            if n.neighbors[LEFT] != None:
+                q.Enqueue((g, n.neighbors[LEFT], path))
+            
 
 
 

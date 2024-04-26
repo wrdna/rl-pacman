@@ -234,7 +234,7 @@ class GameController(object):
 
     def restartGame(self):
         self.frame_iteration = 0
-        self.lives = 5
+        self.lives = 1
         self.level = 0
         # self.pause.paused = True
         self.fruit = None
@@ -260,7 +260,7 @@ class GameController(object):
 
     def render(self):
         self.screen.blit(self.background, (0, 0))
-        self.nodes.render(self.screen)
+        # self.nodes.render(self.screen)
         self.pellets.render(self.screen)
         if self.fruit is not None:
             self.fruit.render(self.screen)

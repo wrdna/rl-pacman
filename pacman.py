@@ -73,7 +73,7 @@ class Pacman(Entity):
         x_dif = abs(self.position.x - self.node.position.x)
         y_dif = abs(self.position.y - self.node.position.y)
         if x_dif <= self.node.position.thresh and y_dif <= self.node.position.thresh:
-            print("On Node!")
+            if self.debug: print("On Node!")
             return True
         return False
 
