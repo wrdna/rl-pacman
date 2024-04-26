@@ -25,8 +25,10 @@ class Entity(object):
         self.position = self.node.position.copy()
 
     def update(self, dt):
-
-        if dt == 0:
+        #print((self.directions[self.direction]*self.speed).x*dt)
+        #print((self.directions[self.direction]*self.speed).y*dt)
+        #print()
+        if dt == 1:
             self.position += self.directions[self.direction]*self.speed
         else:
             self.position += self.directions[self.direction]*self.speed*dt

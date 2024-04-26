@@ -91,6 +91,8 @@ class PacManEnv(gym.Env):
         self.ghosts.clyde.startNode.denyAccess(LEFT, self.ghosts.clyde)
         self.mazedata.obj.denyGhostsAccess(self.ghosts, self.nodes)
         self.pause.paused = False
+
+        self.ghostEaten = False
     
     # Get the observation space of the current state
     def _get_obs(self):
@@ -131,7 +133,7 @@ class PacManEnv(gym.Env):
         return observation
 
     def _get_info(self):
-        print(self.score)
+        #print(self.score)
         return {
             "score": self.score,
         }
@@ -149,36 +151,40 @@ class PacManEnv(gym.Env):
         old_lives = self.lives
         old_pellets = self.pellets.numEaten
         
-        # Handling pacman movement
-        direction = self._action_to_direction[action]
-        if self.pacman.overshotTarget():
-            self.pacman.node = self.pacman.target
-            if self.pacman.node.neighbors[PORTAL] is not None:
-                self.pacman.node = self.pacman.node.neighbors[PORTAL]
-            self.pacman.target = self.pacman.getNewTarget(direction)
-            if self.pacman.target is not self.pacman.node:
-                self.pacman.direction = direction
-            else:
-                self.pacman.target = self.pacman.getNewTarget(self.pacman.direction)
+        ## Handling pacman movement
+        #direction = self._action_to_direction[action]
+        #if self.pacman.overshotTarget():
+        #    self.pacman.node = self.pacman.target
+        #    if self.pacman.node.neighbors[PORTAL] is not None:
+        #        self.pacman.node = self.pacman.node.neighbors[PORTAL]
+        #    self.pacman.target = self.pacman.getNewTarget(direction)
+        #    if self.pacman.target is not self.pacman.node:
+        #        self.pacman.direction = direction
+        #    else:
+        #        self.pacman.target = self.pacman.getNewTarget(self.pacman.direction)
 
-            if self.pacman.target is self.pacman.node:
-                self.pacman.direction = STOP
-            self.pacman.setPosition()
-        else: 
-            if self.pacman.oppositeDirection(direction):
-                self.pacman.reverseDirection()
+        #    if self.pacman.target is self.pacman.node:
+        #        self.pacman.direction = STOP
+        #    self.pacman.setPosition()
+        #else: 
+        #    if self.pacman.oppositeDirection(direction):
+        #        self.pacman.reverseDirection()
         
         # Updating game state
         self.update()
         
         # Rewards
         if old_pellets < self.pellets.numEaten:
-            reward += 4 
+            reward += 10 
         #else:
         #    reward -= 2 
 
+        if self.ghostEaten:
+            reward += 200
+            self.ghostEaten = False
+
         if old_lives > self.lives:
-            reward -= 50 
+            reward -= 1000 
         else:
             reward += 1
 
@@ -234,9 +240,10 @@ class PacManEnv(gym.Env):
     def update(self):
         #self.clock.tick(self.metadata["render_fps"]) / 1000.0
         if self.render_mode == 'human':
-            dt = self.metadata["render_fps"] / 1000.0 
+            dt = 1 / self.metadata["render_fps"] * 5
         else:
-            dt = 0
+            pass
+        #dt = 0.04166667 
 
         self.textgroup.update(dt)
         self.pellets.update(dt)
@@ -252,7 +259,8 @@ class PacManEnv(gym.Env):
             if not self.pause.paused:
                 self.pacman.update(dt)
         else:
-            self.pacman.update(dt)
+            pass
+            #self.pacman.update(dt)
 
         if self.flashBG:
             self.flashTimer += dt
@@ -278,6 +286,7 @@ class PacManEnv(gym.Env):
                 self.clock = pygame.time.Clock()
                 self.screen_shown = True
                 self.screen = pygame.display.set_mode(SCREENSIZE, 0, 32)
+
             self.screen.blit(self.background, (0, 0))
             #self.nodes.render(self.screen)
             self.pellets.render(self.screen)
@@ -358,6 +367,7 @@ class PacManEnv(gym.Env):
                     self.pause.setPause(pauseTime=0, func=self.showEntities)
                     ghost.startSpawn()
                     self.nodes.allowHomeAccess(ghost)
+                    self.ghostEaten = True
                 elif ghost.mode.current is not SPAWN:
                     if self.pacman.alive:
                         self.lives -=  1
@@ -418,6 +428,7 @@ class PacManEnv(gym.Env):
         self.textgroup.showText(READYTXT)
         self.lifesprites.resetLives(self.lives)
         self.fruitCaptured = []
+        self.ghostEaten = False
 
     def resetLevel(self):
         #self.pause.paused = True

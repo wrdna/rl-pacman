@@ -1,5 +1,6 @@
 import gymnasium as gym
 import math
+import time
 import random
 import matplotlib
 import matplotlib.pyplot as plt
@@ -46,16 +47,18 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
         self.layer1 = nn.Linear(n_observations, 256)
         self.layer2 = nn.Linear(256, 256)
-        self.layer3 = nn.Linear(256, 256)
-        self.layer4 = nn.Linear(256, 128)
-        self.layer5 = nn.Linear(128, n_actions)
+        self.layer3 = nn.Linear(256, 512)
+        self.layer4 = nn.Linear(512, 256)
+        self.layer5 = nn.Linear(256, 128)
+        self.layer6 = nn.Linear(128, n_actions)
 
     def forward(self, x):
         x = F.relu(self.layer1(x))
         x = F.relu(self.layer2(x))
         x = F.relu(self.layer3(x))
         x = F.relu(self.layer4(x))
-        return self.layer5(x)
+        x = F.relu(self.layer5(x))
+        return self.layer6(x)
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
@@ -84,11 +87,18 @@ episode_num_pellets = []
 
 def main():
     if torch.cuda.is_available():
-        num_episodes = 1400
+        num_episodes = 20000
     else:
         num_episodes = 50
     
     for i_episode in range(num_episodes):
+        if i_episode%100 == 0:
+            torch.save(policy_net,f'models/policy_net_{i_episode}.pt') 
+        env = gym.make("pacmangym/PacManEnv-v0", render_mode='human')
+        env = gym.wrappers.FlattenObservation(env)
+        #else:
+        #    env = gym.make("pacmangym/PacManEnv-v0")
+        #    env = gym.wrappers.FlattenObservation(env)
         # Initialize the environment and get its state
         state, info = env.reset()
         state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
@@ -124,7 +134,6 @@ def main():
                 episode_num_pellets.append(info['score'])
                 plot_num_pellets()
                 break
-    
     print('Complete')
     plot_num_pellets(show_result=True)
     plt.ioff()
@@ -154,7 +163,7 @@ def plot_num_pellets(show_result=False):
         plt.clf()
         plt.title('Training...')
     plt.xlabel('Episode')
-    plt.ylabel('Duration')
+    plt.ylabel('Score')
     plt.plot(pellets_t.numpy())
     # Take 100 episode averages and plot them too
     if len(pellets_t) >= 100:

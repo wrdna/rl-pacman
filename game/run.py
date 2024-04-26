@@ -148,6 +148,7 @@ class PacManEnv(gym.Env):
 
     def update(self):
         dt = self.clock.tick(self.metadata["render_fps"]) / 1000.0
+        dt = 0.01
         self.textgroup.update(dt)
         self.pellets.update(dt)
         if not self.pause.paused:

@@ -14,6 +14,7 @@ class Pacman(Entity):
         self.setBetweenNodes(LEFT)
         self.alive = True
         self.sprites = PacmanSprites(self)
+        self.debug = False
 
     def reset(self):
         Entity.reset(self)
@@ -76,3 +77,53 @@ class Pacman(Entity):
         if dSquared <= rSquared:
             return True
         return False
+     
+    # Movement Calculations Relative To Pacman
+    def MovingUpOrDown(self):
+        return self.direction == UP or self.direction == DOWN
+
+    def MovingLeftOrRight(self):
+        return self.direction == RIGHT or self.direction == LEFT
+
+    def canGoUp(self):
+        if self.OnNode() and self.node.neighbors[UP] != None or self.MovingUpOrDown():
+            if self.debug: print("U")
+            return True
+        if self.debug: print()
+        return False
+
+    def canGoDown(self):
+        if self.OnNode() and self.node.neighbors[DOWN] != None or self.MovingUpOrDown():
+            if self.debug: print("D")
+            return True
+        if self.debug: print()
+        return False
+
+    def canGoRight(self):
+        if self.OnNode() and self.node.neighbors[RIGHT] != None or self.MovingLeftOrRight():
+            if self.debug: print("R")
+            return True
+        if self.debug: print()
+        return False
+
+    def canGoLeft(self):
+        if self.OnNode() and self.node.neighbors[LEFT] != None or self.MovingLeftOrRight():
+            if self.debug: print("L")
+            return True
+        if self.debug: print()
+        return False
+    
+    def testGo(self):
+        self.canGoUp()
+        self.canGoDown()
+        self.canGoLeft()
+        self.canGoRight()
+
+    def OnNode(self):
+        x_dif = abs(self.position.x - self.node.position.x)
+        y_dif = abs(self.position.y - self.node.position.y)
+        if x_dif <= self.node.position.thresh and y_dif <= self.node.position.thresh:
+            print("On Node!")
+            return True
+        return False
+
