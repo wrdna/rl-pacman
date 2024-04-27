@@ -1,5 +1,6 @@
 # Written By RK
 # This agent implements Q learning to train a model to play pacman
+from run import GameController
 
 # Define Rewards
 Rewards = {
@@ -47,7 +48,7 @@ class Agent:
 
 
 def train(self):
-    pass
+    pacman = GameController()
 
 def play_model(self):
     pass

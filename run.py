@@ -13,6 +13,7 @@ from sprites import MazeSprites
 from mazedata import MazeData
 # AI imports
 from enum import Enum
+import random
 
 class GameController(object):
     def __init__(self):
@@ -36,7 +37,10 @@ class GameController(object):
         self.fruitNode = None
         self.mazedata = MazeData()
         # AI 
+        self.disableghosts = True
+        self.disablelevels = True
         self.frame_iteration = 0
+        self.fps = 30 # game tickrate
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -59,15 +63,20 @@ class GameController(object):
         self.pacman = Pacman(self.nodes.getNodeFromTiles(*self.mazedata.obj.pacmanStart))
         self.pellets = PelletGroup(self.mazedata.obj.name+".txt")
 
-        self.setupGhosts()
-        # self.ghosts = False
+        # disable ghosts
+        if self.disableghosts:
+            self.ghosts = False
+        else:
+            self.setupGhosts()
+
+        # hide annoying text
+        self.textgroup.hideText()
 
         self.nodes.denyHomeAccess(self.pacman)
 
 
     def setupGhosts(self):
         self.ghosts = GhostGroup(self.nodes.getStartTempNode(), self.pacman)
-
         self.ghosts.pinky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(2, 3)))
         self.ghosts.inky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(0, 3)))
         self.ghosts.clyde.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(4, 3)))
@@ -78,12 +87,10 @@ class GameController(object):
         self.ghosts.clyde.startNode.denyAccess(LEFT, self.ghosts.clyde)
         self.mazedata.obj.denyGhostsAccess(self.ghosts, self.nodes)
         
-    # Main logic in loop
+    # where stuff happens
     def update(self, action=None):
         self.frame_iteration += 1
-        dt = self.clock.tick(30) / 1000.0
-        # dt = self.clock.tick(1)
-        # dt = 1/1000
+        dt = self.clock.tick(self.fps) / 1000.0
         self.textgroup.update(dt)
         self.pellets.update(dt)
         # if not self.pause.paused:
@@ -92,30 +99,35 @@ class GameController(object):
         if self.fruit is not None:
             self.fruit.update(dt)
 
-        # 
+        # Reward Calculations
         reward = 0
+        second = self.frame_iteration % self.fps == 0
+        # encourage model not to sit around -1 every second
+        if second:
+            reward += -1
         reward += self.checkPelletEvents()
         if self.ghosts:
             reward += self.checkGhostEvents()
         reward += self.checkFruitEvents()
+        # Test
+        action = random.randint(-2, 2)
 
         # get pacman position and direction
-        p_pos, p_dir = self.pacman.update(dt)
+        p_pos, p_dir = self.pacman.update(dt, action)
 
         # get positions of ghosts
+        print(f'Reward: {reward}')
 
-        # Logging
-        # print(reward)
+        # if self.flashBG:
+        #     self.flashTimer += dt
+        #     if self.flashTimer >= self.flashTime:
+        #         self.flashTimer = 0
+        #         if self.background == self.background_norm:
+        #             self.background = self.background_flash
+        #         else:
+        #             self.background = self.background_norm
 
-        if self.flashBG:
-            self.flashTimer += dt
-            if self.flashTimer >= self.flashTime:
-                self.flashTimer = 0
-                if self.background == self.background_norm:
-                    self.background = self.background_flash
-                else:
-                    self.background = self.background_norm
-
+        # handle human input    
         self.checkEvents()
         self.render()
 
@@ -135,12 +147,12 @@ class GameController(object):
                         self.textgroup.showText(PAUSETXT)
                         #self.hideEntities()
 
-    # Update - takes reward values
-    def checkPelletEvents(self, MOVE=-1, EAT_PELLET=2, EAT_POWER_PELLET=5, BEAT_LEVEL=100):
+    # update - takes reward values
+    def checkPelletEvents(self, EAT_PELLET=2, EAT_POWER_PELLET=5, BEAT_LEVEL=100):
+        reward = 0
         pellet = self.pacman.eatPellets(self.pellets.pelletList)
-        reward = MOVE
         if pellet:
-            self.pellets.numEaten += 1
+            self.pellets.numEaten += EAT_PELLET
             self.updateScore(pellet.points)
             reward += EAT_PELLET
             if self.pellets.numEaten == 30 and self.ghosts:
@@ -148,14 +160,17 @@ class GameController(object):
             if self.pellets.numEaten == 70 and self.ghosts:
                 self.ghosts.clyde.startNode.allowAccess(LEFT, self.ghosts.clyde)
             self.pellets.pelletList.remove(pellet)
+            # powerpellet event
             if pellet.name == POWERPELLET:
                 if self.ghosts:
                     self.ghosts.startFreight()
                 reward += EAT_POWER_PELLET
+            # eeat Level
             if self.pellets.isEmpty():
                 self.flashBG = True
                 self.hideEntities()
-                self.nextLevel()
+                if not self.disablelevels:
+                    self.nextLevel()
                 reward += BEAT_LEVEL
                 # self.pause.setPause(pauseTime=3, func=self.nextLevel)
         return reward
@@ -230,7 +245,8 @@ class GameController(object):
         self.level += 1
         # self.pause.paused = True
         self.startGame()
-        self.textgroup.updateLevel(self.level)
+        # disable next level
+        # self.textgroup.updateLevel(self.level)
 
     def restartGame(self):
         self.frame_iteration = 0
@@ -252,7 +268,7 @@ class GameController(object):
         if self.ghosts:
             self.ghosts.reset()
         self.fruit = None
-        self.textgroup.showText(READYTXT)
+        # self.textgroup.showText(READYTXT)
 
     def updateScore(self, points):
         self.score += points

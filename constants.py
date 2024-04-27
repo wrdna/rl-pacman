@@ -22,6 +22,16 @@ LEFT = 2
 RIGHT = -2
 PORTAL = 3
 
+# reverses direction value => key for human readability
+DIRECTION_MAP = {
+    0: "STOP",
+    1: "UP",
+    -1: "DOWN",
+    2: "LEFT",
+    -2: "RIGHT",
+    3: "PORTAL",
+}
+
 PACMAN = 0
 PELLET = 1
 POWERPELLET = 2

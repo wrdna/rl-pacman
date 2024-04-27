@@ -14,7 +14,8 @@ class Pacman(Entity):
         self.setBetweenNodes(LEFT)
         self.alive = True
         self.sprites = PacmanSprites(self)
-        self.debug = True
+        # adds direction logging
+        self.debug = False
 
     def reset(self):
         Entity.reset(self)
@@ -78,12 +79,16 @@ class Pacman(Entity):
         return False
 
 
-    # Update - return direction
-    def update(self, dt):
+    # update - takes action from agent - returns position and direction
+    def update(self, dt, action=None):
         self.testGo()	
         self.sprites.update(dt)
         self.position += self.directions[self.direction]*self.speed*dt
-        direction = self.getValidKey()
+        # inject action from agent
+        if action != None:
+            direction = action
+        else:
+            direction = self.getValidKey()
         if self.overshotTarget():
             self.node = self.target
             if self.node.neighbors[PORTAL] is not None:
@@ -100,8 +105,7 @@ class Pacman(Entity):
         else: 
             if self.oppositeDirection(direction):
                 self.reverseDirection()
-
-        # print(f'Pos: {self.position} Dir: {self.direction}')
+        # print(f'Pacman pos: {self.position} dir: {self.direction}')
         return self.position, self.direction
 
     def getValidKey(self):
