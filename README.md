@@ -1,9 +1,9 @@
 # Pacman QLearning
 
-Original pacman game code from [PacmanCode](https://pacmancode.com) implemented in pygame. The QLearning model is implemented using pytorch.
+Original pacman game code from [PacmanCode](https://pacmancode.com) implemented in pygame.
 
-Let's have fun!
+This is a model where pacman makes random moves used for comparison
 
-## Installing Requirements
+## Requirements
 
 - pygame
