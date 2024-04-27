@@ -4,6 +4,7 @@ Original pacman game code from [PacmanCode](https://pacmancode.com) implemented 
 
 Let's have fun!
 
-## Installing Requirements
+## Requirements
 
 - pygame
+- pytorch

@@ -80,13 +80,15 @@ class Pacman(Entity):
 
 
     # update - takes action from agent - returns position and direction
-    def update(self, dt, action=None):
+    def update(self, dt, action=None, humaninput=False):
         self.testGo()	
         self.sprites.update(dt)
         self.position += self.directions[self.direction]*self.speed*dt
         # inject action from agent
         if action != None:
             direction = action
+        elif not humaninput:
+            direction = STOP
         else:
             direction = self.getValidKey()
         if self.overshotTarget():
@@ -106,7 +108,7 @@ class Pacman(Entity):
             if self.oppositeDirection(direction):
                 self.reverseDirection()
         # print(f'Pacman pos: {self.position} dir: {self.direction}')
-        return self.position, self.direction
+        # return self.position, self.direction
 
     def getValidKey(self):
         key_pressed = pygame.key.get_pressed()

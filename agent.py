@@ -1,5 +1,6 @@
 # Written By RK
 # This agent implements Q learning to train a model to play pacman
+import random
 from run import GameController
 
 # Define Rewards
@@ -31,8 +32,8 @@ class Agent:
         # self.model = Linear_QNet(11, 256, 3)
         # self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
-    def get_state(self):
-        pass
+    def get_state(self, game):
+        return None
 
     def remember(self):
         pass
@@ -43,12 +44,38 @@ class Agent:
     def train_short_memory(self):
         pass
 
-    def action(self):
-        pass
+    def get_action(self, state):
+        move = random.randint(-2, 2)
+        return move
 
 
-def train(self):
+def train():
+    agent = Agent()
+    games_played = 0
+    accum_reward = 0
+
+    # game
     pacman = GameController()
+    pacman.startGame()
+    # run 
+    while True:
+
+        # get state
+        state = agent.get_state(pacman)
+
+        # calculate move
+        move = agent.get_action(state)
+
+        reward, gameover, score = pacman.update(move)
+        accum_reward += reward
+
+        if gameover:
+            games_played += 1
+
+            pacman.restartGame()
+
+            print(f"game {games_played} | score {score} | reward {accum_reward}")
+            accum_reward = 0
 
 def play_model(self):
     pass

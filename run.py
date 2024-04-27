@@ -37,10 +37,12 @@ class GameController(object):
         self.fruitNode = None
         self.mazedata = MazeData()
         # AI 
-        self.disableghosts = True
+        self.disableghosts = False
         self.disablelevels = True
         self.frame_iteration = 0
         self.fps = 30 # game tickrate
+
+        self.humaninput = False
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -90,7 +92,8 @@ class GameController(object):
     # where stuff happens
     def update(self, action=None):
         self.frame_iteration += 1
-        dt = self.clock.tick(self.fps) / 1000.0
+        dt = self.fps / 1000.0
+        # dt = self.clock.tick(self.fps) / 1000.0
         self.textgroup.update(dt)
         self.pellets.update(dt)
         # if not self.pause.paused:
@@ -102,36 +105,38 @@ class GameController(object):
         # Reward Calculations
         reward = 0
         second = self.frame_iteration % self.fps == 0
+
+        # calculate rewards and if gameover
+        pellet_reward, gameover = self.checkPelletEvents()
+        if self.ghosts:
+            ate_ghost, got_eaten = self.checkGhostEvents()
+            reward += ate_ghost
+            gameover = gameover or got_eaten
+        
+        reward += self.checkFruitEvents()
+        reward += pellet_reward
+     
         # encourage model not to sit around -1 every second
         if second:
             reward += -1
-        reward += self.checkPelletEvents()
-        if self.ghosts:
-            reward += self.checkGhostEvents()
-        reward += self.checkFruitEvents()
-        # Test
-        action = random.randint(-2, 2)
 
         # get pacman position and direction
-        p_pos, p_dir = self.pacman.update(dt, action)
+        self.pacman.update(dt, action)
 
-        # get positions of ghosts
-        print(f'Reward: {reward}')
+        # print(f'Reward: {reward}')
 
-        # if self.flashBG:
-        #     self.flashTimer += dt
-        #     if self.flashTimer >= self.flashTime:
-        #         self.flashTimer = 0
-        #         if self.background == self.background_norm:
-        #             self.background = self.background_flash
-        #         else:
-        #             self.background = self.background_norm
-
+        # self.flash(dt)
         # handle human input    
+        
         self.checkEvents()
         self.render()
 
-        return p_dir
+        self.clock.tick(self.fps)
+
+        return reward, gameover, self.score
+
+    def getState(self):
+        pass
 
     # Handles pausing/quiting events
     def checkEvents(self):
@@ -150,6 +155,8 @@ class GameController(object):
     # update - takes reward values
     def checkPelletEvents(self, EAT_PELLET=2, EAT_POWER_PELLET=5, BEAT_LEVEL=100):
         reward = 0
+        gameover = False
+        # game logic
         pellet = self.pacman.eatPellets(self.pellets.pelletList)
         if pellet:
             self.pellets.numEaten += EAT_PELLET
@@ -165,18 +172,22 @@ class GameController(object):
                 if self.ghosts:
                     self.ghosts.startFreight()
                 reward += EAT_POWER_PELLET
-            # eeat Level
+            # calculate won - restart or next level
             if self.pellets.isEmpty():
                 self.flashBG = True
                 self.hideEntities()
+                reward += BEAT_LEVEL
                 if not self.disablelevels:
                     self.nextLevel()
-                reward += BEAT_LEVEL
-                # self.pause.setPause(pauseTime=3, func=self.nextLevel)
-        return reward
+                else:
+                    gameover = True
+                    # self.restartGame()
+                    # self.pause.setPause(pauseTime=3, func=self.nextLevel)
+        return reward, gameover
 
     def checkGhostEvents(self, EAT_GHOST=20, DIE=-200):
         reward = 0
+        gameover = False
         for ghost in self.ghosts:
             if self.pacman.collideGhost(ghost):
                 if ghost.mode.current is FREIGHT:
@@ -197,15 +208,17 @@ class GameController(object):
                         self.lifesprites.removeImage()
                         self.pacman.die()               
                         self.ghosts.hide()
+                        # pacman only has one life so return gameover
                         if self.lives <= 0:
-                            self.textgroup.showText(GAMEOVERTXT)
-                            self.restartGame()
+                            gameover = True
+                            # self.textgroup.showText(GAMEOVERTXT)
+                            # self.restartGame()
                             # self.pause.setPause(pauseTime=3, func=self.restartGame)
-                            self.restartGame()
+                            # self.restartGame()
                         else:
                             self.resetLevel()
-                            # self.pause.setPause(pauseTime=3, func=self.resetLevel)
-        return reward
+                            self.pause.setPause(pauseTime=3, func=self.resetLevel)
+        return reward, gameover
 
     def checkFruitEvents(self, EAT_FRUIT=50):
         reward = 0
@@ -273,6 +286,16 @@ class GameController(object):
     def updateScore(self, points):
         self.score += points
         self.textgroup.updateScore(self.score)
+
+    def flash(self, dt):
+        if self.flashBG:
+            self.flashTimer += dt
+            if self.flashTimer >= self.flashTime:
+                self.flashTimer = 0
+                if self.background == self.background_norm:
+                    self.background = self.background_flash
+                else:
+                    self.background = self.background_norm
 
     def render(self):
         self.screen.blit(self.background, (0, 0))
