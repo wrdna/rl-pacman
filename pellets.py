@@ -18,6 +18,7 @@ class Pellet(object):
             adjust = Vector2(TILEWIDTH, TILEHEIGHT) / 2
             p = self.position + adjust
             pygame.draw.circle(screen, self.color, p.asInt(), self.radius)
+            p.color = WHITE
 
 
 class PowerPellet(Pellet):

@@ -13,6 +13,7 @@ class Linear_QNet(nn.Module):
 
     def forward(self, x):
         x = F.relu(self.linear1(x))
+        # x = F.leaky_relu(self.linear1(x))
         x = self.linear2(x)
         return x
     
@@ -33,6 +34,8 @@ class QTrainer:
         self.model = model
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
+        # self.criterion = nn.CrossEntropyLoss()
+        # self.criterion = nn.L1Loss()
 
     def train_step(self, state, action, reward, next_state, done):
         state = torch.tensor(state, dtype=torch.float)
@@ -66,7 +69,3 @@ class QTrainer:
         loss.backward(loss)
 
         self.optimizer.step()
-
-        # 2 Q_new = r + y * max(next_predicted Q value)
-        # pred.clone()
-        # preds[argmax(action)] = Q_new 

@@ -1,3 +1,4 @@
+import math
 import pygame
 from pygame.locals import *
 from constants import *
@@ -16,7 +17,7 @@ from enum import Enum
 import random
 
 class GameController(object):
-    def __init__(self):
+    def __init__(self, rewards=None, settings=None):
         pygame.init()
         self.screen = pygame.display.set_mode(SCREENSIZE, 0, 32)
         self.background = None
@@ -36,13 +37,34 @@ class GameController(object):
         self.fruitCaptured = []
         self.fruitNode = None
         self.mazedata = MazeData()
+        self.rendernodes = False
         # AI 
-        self.disableghosts = False
-        self.disablelevels = True
         self.frame_iteration = 0
-        self.fps = 30 # game tickrate
+        # self.humaninput = False
+        # self.disableghosts = True
+        # self.disablelevels = True
+        # self.fps = 30 # game tickrate
+        self.setSettings(settings)
 
-        self.humaninput = False
+        # set rewards
+        if rewards != None:
+            self.rewards = rewards
+        else:
+            self.setDefaultRewards()
+
+    
+    def setSettings(self, settings):
+        if settings != None:
+            self.humaninput = False
+            self.disableghosts = settings["DISABLE_GHOSTS"]
+            self.disablelevels = settings["DISABLE_LEVELS"]
+            self.fps = settings["FPS"]
+            self.t_mult = settings["T_MULT"]
+        else:
+            self.humaninput = True
+            self.disableghosts = False
+            self.disablelevels = False
+            self.fps = 30
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -116,12 +138,20 @@ class GameController(object):
         reward += self.checkFruitEvents()
         reward += pellet_reward
      
+        if self.pacman.direction == STOP:
+            reward += self.rewards['STOPPED']
+
         # encourage model not to sit around -1 every second
-        if second:
-            reward += -1
+        # if second:
+        reward += -1
 
         # get pacman position and direction
         self.pacman.update(dt, action)
+
+        if not self.humaninput:
+            if gameover or self.frame_iteration > self.t_mult*(self.score+self.fps) and self.t_mult != None:
+                gameover = True
+                reward += self.rewards["DIE"]
 
         # print(f'Reward: {reward}')
 
@@ -135,8 +165,22 @@ class GameController(object):
 
         return reward, gameover, self.score
 
-    def getState(self):
-        pass
+    def getClosestPellet(self):
+        closest = 1000000
+        p = None
+        for pellet in self.pellets.pelletList:
+            diff = self.getDistance(self.pacman.position, pellet.position)
+            if diff < closest:
+                closest = diff
+                p = pellet
+        # print(len(self.pellets.pelletList))
+        # print(f'pellet: {pellet.position} | packman: {self.pacman.position}: diff {diff}')
+        p.color = GREEN
+        p.render(self.screen)
+        return p
+
+    def getDistance(self, p1, p2):
+        return math.sqrt((p2.y - p1.y)**2 + (p2.x - p1.x)**2)
 
     # Handles pausing/quiting events
     def checkEvents(self):
@@ -153,15 +197,14 @@ class GameController(object):
                         #self.hideEntities()
 
     # update - takes reward values
-    def checkPelletEvents(self, EAT_PELLET=2, EAT_POWER_PELLET=5, BEAT_LEVEL=100):
+    def checkPelletEvents(self):
         reward = 0
         gameover = False
         # game logic
         pellet = self.pacman.eatPellets(self.pellets.pelletList)
         if pellet:
-            self.pellets.numEaten += EAT_PELLET
             self.updateScore(pellet.points)
-            reward += EAT_PELLET
+            reward += self.rewards["EAT_PELLET"]
             if self.pellets.numEaten == 30 and self.ghosts:
                 self.ghosts.inky.startNode.allowAccess(RIGHT, self.ghosts.inky)
             if self.pellets.numEaten == 70 and self.ghosts:
@@ -171,12 +214,12 @@ class GameController(object):
             if pellet.name == POWERPELLET:
                 if self.ghosts:
                     self.ghosts.startFreight()
-                reward += EAT_POWER_PELLET
+                reward += self.rewards["EAT_POWER_PELLET"]
             # calculate won - restart or next level
             if self.pellets.isEmpty():
                 self.flashBG = True
                 self.hideEntities()
-                reward += BEAT_LEVEL
+                reward += self.rewards["BEAT_LEVEL"]
                 if not self.disablelevels:
                     self.nextLevel()
                 else:
@@ -185,7 +228,7 @@ class GameController(object):
                     # self.pause.setPause(pauseTime=3, func=self.nextLevel)
         return reward, gameover
 
-    def checkGhostEvents(self, EAT_GHOST=20, DIE=-200):
+    def checkGhostEvents(self):
         reward = 0
         gameover = False
         for ghost in self.ghosts:
@@ -200,11 +243,11 @@ class GameController(object):
                     self.showEntities()
                     ghost.startSpawn()
                     self.nodes.allowHomeAccess(ghost)
-                    reward += EAT_GHOST
+                    reward += self.rewards["EAT_GHOST"]
                 elif ghost.mode.current is not SPAWN:
                     if self.pacman.alive:
                         self.lives -=  1
-                        reward += DIE
+                        reward += self.rewards["DIE"]
                         self.lifesprites.removeImage()
                         self.pacman.die()               
                         self.ghosts.hide()
@@ -220,7 +263,7 @@ class GameController(object):
                             self.pause.setPause(pauseTime=3, func=self.resetLevel)
         return reward, gameover
 
-    def checkFruitEvents(self, EAT_FRUIT=50):
+    def checkFruitEvents(self):
         reward = 0
         if self.pellets.numEaten == 50 or self.pellets.numEaten == 140:
             if self.fruit is None:
@@ -229,7 +272,7 @@ class GameController(object):
         if self.fruit is not None:
             if self.pacman.collideCheck(self.fruit):
                 self.updateScore(self.fruit.points)
-                reward += EAT_FRUIT
+                reward += self.rewards["EAT_FRUIT"]
                 self.textgroup.addText(str(self.fruit.points), WHITE, self.fruit.position.x, self.fruit.position.y, 8, time=1)
                 fruitCaptured = False
                 for fruit in self.fruitCaptured:
@@ -271,7 +314,7 @@ class GameController(object):
         self.score = 0
         self.textgroup.updateScore(self.score)
         self.textgroup.updateLevel(self.level)
-        self.textgroup.showText(READYTXT)
+        # self.textgroup.showText(READYTXT)
         self.lifesprites.resetLives(self.lives)
         self.fruitCaptured = []
 
@@ -297,9 +340,21 @@ class GameController(object):
                 else:
                     self.background = self.background_norm
 
+    def setDefaultRewards(self):
+        self.rewards = {
+            "MOVE": -1, 
+            "EAT_PELLET": 2,
+            "EAT_POWER_PELLET": 5,
+            "EAT_GHOST": 20,
+            "BEAT_LEVEL": 100,
+            "DIE": -200,
+            "EAT_FRUIT": 10
+        }
+
     def render(self):
         self.screen.blit(self.background, (0, 0))
-        # self.nodes.render(self.screen)
+        if self.rendernodes:
+            self.nodes.render(self.screen)
         self.pellets.render(self.screen)
         if self.fruit is not None:
             self.fruit.render(self.screen)
