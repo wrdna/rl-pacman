@@ -11,3 +11,5 @@ Activating environment:
 Installing pacmangym gymnasium environment locally (inside src):
 ```pip install -e pacmangym```
 
+Pacman game used from https://pacmancode.com
+Implemented DQN tutorial from https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html

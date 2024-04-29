@@ -9,7 +9,7 @@ DEATH = 5
 
 class Spritesheet(object):
     def __init__(self):
-        self.sheet = pygame.image.load("pacmangym/pacmangym/envs/spritesheet_mspacman.png")
+        self.sheet = pygame.image.load("pacmangym/pacmangym/envs/spritesheet.png")
         transcolor = self.sheet.get_at((0,0))
         self.sheet.set_colorkey(transcolor)
         width = int(self.sheet.get_width() / BASETILEWIDTH * TILEWIDTH)

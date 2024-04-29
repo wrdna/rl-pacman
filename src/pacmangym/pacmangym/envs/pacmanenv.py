@@ -1,4 +1,5 @@
 import pygame
+import time
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
@@ -16,7 +17,7 @@ from .sprites import MazeSprites
 from .mazedata import MazeData
 
 class PacManEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps":30}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps":240}
 
     def __init__(self, render_mode=None):
         pygame.init()
@@ -40,21 +41,26 @@ class PacManEnv(gym.Env):
         self.fruitCaptured = []
         self.fruitNode = None
         self.mazedata = MazeData()
-
+        self.total_reward = 0
+        self.step_count = 0
         self.max_pellets = 244 
         self.coord_shape = 2
         self.observation_space = spaces.Dict({
-            'lives': spaces.Discrete(self.lives+1),
+            #'lives': spaces.Discrete(self.lives+1),
             'pacman_pos': spaces.Box(low=0, high=SCREENWIDTH, shape=(self.coord_shape,)),
+            'pacman_direction': spaces.Discrete(4),
+            'pacman_can_move': spaces.MultiDiscrete([2,2,2,2]),
             'pellet_positions': spaces.Box(low=0, high=SCREENWIDTH, shape=(self.max_pellets * self.coord_shape,)),
-            'num_pellets': spaces.Discrete(self.max_pellets+1),
+            #'num_pellets': spaces.Discrete(self.max_pellets+1),
             'ghost_pos': spaces.Box(low=0, high=SCREENWIDTH, shape=(4 * self.coord_shape,)),
-            'ghost_status': spaces.MultiDiscrete([4, 4, 4, 4]),
+            'ghost_status': spaces.MultiDiscrete([4,4,4,4]),
+            'score': spaces.Box(low=0, high=np.inf, shape=()),
+            'step_count': spaces.Box(low=0, high=np.inf, shape=())
         })
 
-        for key, value in self.observation_space.items():
+        #for key, value in self.observation_space.items():
             #print(f"Key: {key}, Value: {value}")
-            pass
+        #    pass
 
         self.action_space = spaces.Discrete(4)
 
@@ -93,10 +99,15 @@ class PacManEnv(gym.Env):
         self.pause.paused = False
 
         self.ghostEaten = False
+
+        self.movesOnNode = 0
+
     
     # Get the observation space of the current state
     def _get_obs(self):
         pacman_pos = np.array([self.pacman.position.x, self.pacman.position.y], dtype='float32')
+        pacman_direction = np.array([self.pacman.direction],dtype='int')
+        pacman_can_move = np.array([self.pacman.canGoUp(), self.pacman.canGoDown(), self.pacman.canGoLeft(), self.pacman.canGoRight()], dtype='int')
         pellet_positions = np.zeros((self.max_pellets, self.coord_shape,), dtype='float32') 
 
         for i in range(self.max_pellets):
@@ -109,24 +120,31 @@ class PacManEnv(gym.Env):
             np.array([self.ghosts.blinky.position.x, self.ghosts.blinky.position.y]),
             np.array([self.ghosts.clyde.position.x, self.ghosts.clyde.position.y])
         ], dtype='float32')
+        
         ghost_status = np.array([
             int(self.ghosts.pinky.mode.current),
             int(self.ghosts.inky.mode.current),
             int(self.ghosts.blinky.mode.current),
             int(self.ghosts.clyde.mode.current),
-        ])
+        ], dtype='int')
+        score = np.array([self.score])
+        step_count = np.array([self.step_count])
 
         observation = {
-            'lives': self.lives,
+            #'lives': self.lives,
             'pacman_pos': pacman_pos,
+            'pacman_direction': pacman_direction,
+            'pacman_can_move': pacman_can_move,
             'pellet_positions': pellet_positions,
-            'num_pellets': num_pellets,
+            #'num_pellets': num_pellets,
             'ghost_pos': ghost_pos,
-            'ghost_status': ghost_status
+            'ghost_status': ghost_status,
+            'score': score,
+            'step_count': step_count,
         }
         #for key, value in observation.items():
         #    if key is 'pacman_pos':
-        #        #print(f"Key: {key}, Value: {value}")
+        #        print(f"Key: {key}, Value: {value}, Type:{type(value)}")
         #        pass
 
 
@@ -136,57 +154,40 @@ class PacManEnv(gym.Env):
         #print(self.score)
         return {
             "score": self.score,
+            "total_reward": self.total_reward,
         }
 
     def reset(self, seed=None, options=None):
         # needs to reset environment
         self.restartGame()
-        print('reset')
         observation = self._get_obs()
         info = self._get_info()
         return observation, info
     
     def step(self, action):
+        self.step_count+=1
         reward = 0
         old_lives = self.lives
         old_pellets = self.pellets.numEaten
+        old_pos = self.pacman.position
         
-        ## Handling pacman movement
-        #direction = self._action_to_direction[action]
-        #if self.pacman.overshotTarget():
-        #    self.pacman.node = self.pacman.target
-        #    if self.pacman.node.neighbors[PORTAL] is not None:
-        #        self.pacman.node = self.pacman.node.neighbors[PORTAL]
-        #    self.pacman.target = self.pacman.getNewTarget(direction)
-        #    if self.pacman.target is not self.pacman.node:
-        #        self.pacman.direction = direction
-        #    else:
-        #        self.pacman.target = self.pacman.getNewTarget(self.pacman.direction)
-
-        #    if self.pacman.target is self.pacman.node:
-        #        self.pacman.direction = STOP
-        #    self.pacman.setPosition()
-        #else: 
-        #    if self.pacman.oppositeDirection(direction):
-        #        self.pacman.reverseDirection()
-        
-        # Updating game state
-        self.update()
+        direction = self._action_to_direction[action]
+        self.update(action=direction)
         
         # Rewards
         if old_pellets < self.pellets.numEaten:
             reward += 10 
-        #else:
-        #    reward -= 2 
 
         if self.ghostEaten:
             reward += 200
             self.ghostEaten = False
 
-        if old_lives > self.lives:
-            reward -= 1000 
-        else:
-            reward += 1
+        if old_pos == self.pacman.position:
+            reward -= 50 
+
+        reward += 2
+        
+        self.total_reward+=reward
 
         # Termination states
         if self.lives <= 0 or self.pellets.isEmpty():
@@ -237,13 +238,13 @@ class PacManEnv(gym.Env):
         self.mazedata.obj.denyGhostsAccess(self.ghosts, self.nodes)
         self.pause.paused = False
 
-    def update(self):
+    def update(self, action=None):
         #self.clock.tick(self.metadata["render_fps"]) / 1000.0
         if self.render_mode == 'human':
-            dt = 1 / self.metadata["render_fps"] * 5
+            dt = 1 / self.metadata["render_fps"] * 1/2  
         else:
             pass
-        #dt = 0.04166667 
+        dt = 0.04166667 
 
         self.textgroup.update(dt)
         self.pellets.update(dt)
@@ -257,7 +258,7 @@ class PacManEnv(gym.Env):
 
         if self.pacman.alive:
             if not self.pause.paused:
-                self.pacman.update(dt)
+                self.pacman.update(dt, action=action)
         else:
             pass
             #self.pacman.update(dt)
@@ -286,6 +287,7 @@ class PacManEnv(gym.Env):
                 self.clock = pygame.time.Clock()
                 self.screen_shown = True
                 self.screen = pygame.display.set_mode(SCREENSIZE, 0, 32)
+                self.setBackground()
 
             self.screen.blit(self.background, (0, 0))
             #self.nodes.render(self.screen)
@@ -425,10 +427,12 @@ class PacManEnv(gym.Env):
         self.score = 0
         self.textgroup.updateScore(self.score)
         self.textgroup.updateLevel(self.level)
-        self.textgroup.showText(READYTXT)
+        #self.textgroup.showText(READYTXT)
         self.lifesprites.resetLives(self.lives)
         self.fruitCaptured = []
         self.ghostEaten = False
+        self.step_count = 0
+        self.total_reward
 
     def resetLevel(self):
         #self.pause.paused = True

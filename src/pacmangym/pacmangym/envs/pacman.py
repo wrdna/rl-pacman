@@ -28,10 +28,13 @@ class Pacman(Entity):
         self.alive = False
         self.direction = STOP
 
-    def update(self, dt):	
+    def update(self, dt, action=None):	
         self.sprites.update(dt)
         self.position += self.directions[self.direction]*self.speed*dt
-        direction = self.getValidKey()
+        if action == None:
+            direction = self.getValidKey()
+        else:
+            direction = action
         if self.overshotTarget():
             self.node = self.target
             if self.node.neighbors[PORTAL] is not None:
@@ -88,30 +91,30 @@ class Pacman(Entity):
     def canGoUp(self):
         if self.OnNode() and self.node.neighbors[UP] != None or self.MovingUpOrDown():
             if self.debug: print("U")
-            return True
+            return 1 
         if self.debug: print()
-        return False
+        return 0 
 
     def canGoDown(self):
         if self.OnNode() and self.node.neighbors[DOWN] != None or self.MovingUpOrDown():
             if self.debug: print("D")
-            return True
+            return 1 
         if self.debug: print()
-        return False
+        return 0 
 
     def canGoRight(self):
         if self.OnNode() and self.node.neighbors[RIGHT] != None or self.MovingLeftOrRight():
             if self.debug: print("R")
-            return True
+            return 1 
         if self.debug: print()
-        return False
+        return 0 
 
     def canGoLeft(self):
         if self.OnNode() and self.node.neighbors[LEFT] != None or self.MovingLeftOrRight():
             if self.debug: print("L")
-            return True
+            return 1 
         if self.debug: print()
-        return False
+        return 0 
     
     def testGo(self):
         self.canGoUp()
@@ -123,7 +126,7 @@ class Pacman(Entity):
         x_dif = abs(self.position.x - self.node.position.x)
         y_dif = abs(self.position.y - self.node.position.y)
         if x_dif <= self.node.position.thresh and y_dif <= self.node.position.thresh:
-            print("On Node!")
+            #print("On Node!")
             return True
         return False
 

@@ -6,7 +6,7 @@ import gymnasium as gym
 
 def main():
     np.set_printoptions(threshold=sys.maxsize)
-    single_env(None)
+    single_env('human')
     #multi_envs('human')
 
 
@@ -18,7 +18,6 @@ def single_env(render_mode):
         action = env.action_space.sample()  # this is where you would insert your policy
         observation, reward, terminated, truncated, info = env.step(action)
         if terminated or truncated:
-            print(info['score'])
             observation, info = env.reset()
     env.close()
 

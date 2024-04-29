@@ -1,3 +1,6 @@
+# PyTorch Tutorial for DQN
+# https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
+
 import gymnasium as gym
 import math
 import time
@@ -6,6 +9,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from collections import namedtuple, deque
 from itertools import count
+from tqdm import tqdm
 
 import torch
 import torch.nn as nn
@@ -13,6 +17,18 @@ import torch. optim as optim
 import torch.nn.functional as F
 
 import pacmangym
+
+MEMORY_BUFFER_SIZE = 300000
+NUM_EPISODES = 30000
+BATCH_SIZE = 1024 
+GAMMA = 0.99
+EPS_START = 0.9
+EPS_END = 0.05
+EPS_DECAY = 3000000
+TAU = 0.005
+LR = 1e-4
+SHOWCASE_MODEL=True
+MODEL='models/policy_net_11300.pt'
 
 env = gym.make("pacmangym/PacManEnv-v0", render_mode='human')
 env = gym.wrappers.FlattenObservation(env)
@@ -47,29 +63,19 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
         self.layer1 = nn.Linear(n_observations, 256)
         self.layer2 = nn.Linear(256, 256)
-        self.layer3 = nn.Linear(256, 512)
-        self.layer4 = nn.Linear(512, 256)
-        self.layer5 = nn.Linear(256, 128)
-        self.layer6 = nn.Linear(128, n_actions)
+        self.layer3 = nn.Linear(256, 128)
+        self.layer4 = nn.Linear(128, n_actions)
 
     def forward(self, x):
         x = F.relu(self.layer1(x))
         x = F.relu(self.layer2(x))
         x = F.relu(self.layer3(x))
-        x = F.relu(self.layer4(x))
-        x = F.relu(self.layer5(x))
-        return self.layer6(x)
-Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'reward'))
+        return self.layer4(x)
 
-BATCH_SIZE = 128
-GAMMA = 0.99
-EPS_START = 0.9
-EPS_END = 0.05
-EPS_DECAY = 1000
-TAU = 0.005
-LR = 1e-4
-memory = ReplayMemory(10000)
+Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
+
+memory = ReplayMemory(MEMORY_BUFFER_SIZE)
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 steps_done = 0
@@ -79,19 +85,23 @@ state, info = env.reset()
 
 n_observations = len(state)
 policy_net = DQN(n_observations, n_actions).to(device)
+if SHOWCASE_MODEL:
+    policy_net = torch.load(MODEL) 
 target_net = DQN(n_observations, n_actions).to(device)
 target_net.load_state_dict(policy_net.state_dict())
 optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=True)
 
-episode_num_pellets = []
+episode_score = []
+episode_reward = []
 
 def main():
     if torch.cuda.is_available():
-        num_episodes = 20000
+        num_episodes = NUM_EPISODES 
     else:
         num_episodes = 50
-    
-    for i_episode in range(num_episodes):
+    total_t = 0 
+    progbar = tqdm(range(num_episodes))
+    for i_episode in progbar:
         if i_episode%100 == 0:
             torch.save(policy_net,f'models/policy_net_{i_episode}.pt') 
         env = gym.make("pacmangym/PacManEnv-v0", render_mode='human')
@@ -103,6 +113,8 @@ def main():
         state, info = env.reset()
         state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
         for t in count():
+            progbar.set_description(f'total steps: {total_t}')
+            total_t+=1
             action = select_action(state)
             observation, reward, terminated, truncated, info = env.step(action.item())
             reward = torch.tensor([reward], device=device)
@@ -131,15 +143,21 @@ def main():
             target_net.load_state_dict(target_net_state_dict)
     
             if done:
-                episode_num_pellets.append(info['score'])
-                plot_num_pellets()
+                episode_score.append(info['score'])
+                episode_reward.append(info['total_reward'])
+                plot_score()
+                plot_reward()
                 break
     print('Complete')
-    plot_num_pellets(show_result=True)
+    plot_score(show_result=True)
+    plot_reward(show_result=True)
     plt.ioff()
     plt.show()
 
 def select_action(state):
+    if SHOWCASE_MODEL:
+        with torch.no_grad():
+            return policy_net(state).max(1).indices.view(1, 1)
     global steps_done
     sample = random.random()
     eps_threshold = EPS_END + (EPS_START - EPS_END) * \
@@ -154,9 +172,40 @@ def select_action(state):
     else:
         return torch.tensor([[env.action_space.sample()]], device=device, dtype=torch.long)
 
-def plot_num_pellets(show_result=False):
+def plot_reward(show_result=False):
+    plt.figure(2)
+    reward_t = torch.tensor(episode_reward, dtype=torch.float)
+    if show_result:
+        plt.title('Result')
+    else:
+        plt.clf()
+        plt.title('Training...')
+    plt.xlabel('Episode')
+    plt.ylabel('Reward')
+    plt.plot(reward_t.numpy())
+    # Take 100 episode averages and plot them too
+    if len(reward_t) >= 100:
+        means = reward_t.unfold(0, 100, 1).mean(1).view(-1)
+        means = torch.cat((torch.zeros(99), means))
+        plt.plot(means.numpy())
+
+    # Take 1000 episode averages and plot them too
+    if len(reward_t) >= 1000:
+        means = reward_t.unfold(0, 1000, 1).mean(1).view(-1)
+        means = torch.cat((torch.zeros(999), means))
+        plt.plot(means.numpy())
+
+    plt.pause(0.001)  # pause a bit so that plots are updated
+    if is_ipython:
+        if not show_result:
+            display.display(plt.gcf())
+            display.clear_output(wait=True)
+        else:
+            display.display(plt.gcf())
+
+def plot_score(show_result=False):
     plt.figure(1)
-    pellets_t = torch.tensor(episode_num_pellets, dtype=torch.float)
+    score_t = torch.tensor(episode_score, dtype=torch.float)
     if show_result:
         plt.title('Result')
     else:
@@ -164,11 +213,17 @@ def plot_num_pellets(show_result=False):
         plt.title('Training...')
     plt.xlabel('Episode')
     plt.ylabel('Score')
-    plt.plot(pellets_t.numpy())
+    plt.plot(score_t.numpy())
     # Take 100 episode averages and plot them too
-    if len(pellets_t) >= 100:
-        means = pellets_t.unfold(0, 100, 1).mean(1).view(-1)
+    if len(score_t) >= 100:
+        means = score_t.unfold(0, 100, 1).mean(1).view(-1)
         means = torch.cat((torch.zeros(99), means))
+        plt.plot(means.numpy())
+
+    # Take 1000 episode averages and plot them too
+    if len(score_t) >= 1000:
+        means = score_t.unfold(0, 1000, 1).mean(1).view(-1)
+        means = torch.cat((torch.zeros(999), means))
         plt.plot(means.numpy())
 
     plt.pause(0.001)  # pause a bit so that plots are updated
