@@ -33,7 +33,7 @@ class Linear_QNet(nn.Module):
 
     def load(self, file_name='model.pth'):
         file_name = os.path.join("./model", file_name)
-        torch.load(file_name)
+        self.load_state_dict(torch.load(file_name))
 
 
 class QTrainer:

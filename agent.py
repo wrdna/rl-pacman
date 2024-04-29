@@ -205,7 +205,24 @@ def train():
 
 
 def play_model():
-    pass
+    # create agent and load model
+    agent = Agent()
+    agent.model.load()
+
+    # create game and start
+    game = GameController(Rewards, Settings)
+    game.startGame()
+
+    while True:
+        state = agent.get_state(game)
+        move = agent.get_action(state)
+
+        reward, gameover, score = game.update(decodeDirection(move))
+
+        if gameover:
+            game.restartGame()
+            agent.n_games += 1
+
 
 # encode direction as array
 def decodeDirection(matrix):
@@ -225,7 +242,8 @@ def decodeDirection(matrix):
 
 
 if __name__ == '__main__':
-    train()
+    # train()
+    play_model()
 
 
 

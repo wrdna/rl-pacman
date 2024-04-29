@@ -54,6 +54,7 @@ class GameController(object):
             self.fps = settings["FPS"]
             self.t_mult = settings["T_MULT"]
         else:
+            print("Default Settings")
             self.humaninput = True
             self.disableghosts = False
             self.disablelevels = False
@@ -141,7 +142,7 @@ class GameController(object):
         reward += -1
 
         # get pacman position and direction
-        self.pacman.update(dt, action)
+        self.pacman.update(dt, action, self.humaninput)
 
         if not self.humaninput:
             if gameover or self.frame_iteration > self.t_mult*(self.score+self.fps) and self.t_mult != None:
@@ -168,7 +169,6 @@ class GameController(object):
             if diff < closest:
                 closest = diff
                 p = pellet
-        # print(len(self.pellets.pelletList))
         # print(f'pellet: {pellet.position} | packman: {self.pacman.position}: diff {diff}')
         p.color = GREEN
         p.render(self.screen)
@@ -219,7 +219,8 @@ class GameController(object):
                     self.nextLevel()
                 else:
                     gameover = True
-                    # self.restartGame()
+                    if self.human:
+                        self.restartGame()
                     # self.pause.setPause(pauseTime=3, func=self.nextLevel)
         return reward, gameover
 
@@ -250,7 +251,8 @@ class GameController(object):
                         if self.lives <= 0:
                             gameover = True
                             # self.textgroup.showText(GAMEOVERTXT)
-                            # self.restartGame()
+                            if self.human:
+                                self.restartGame()
                             # self.pause.setPause(pauseTime=3, func=self.restartGame)
                             # self.restartGame()
                         else:
@@ -343,7 +345,8 @@ class GameController(object):
             "EAT_GHOST": 20,
             "BEAT_LEVEL": 100,
             "DIE": -200,
-            "EAT_FRUIT": 10
+            "EAT_FRUIT": 10,
+            "STOPPED": -50,
         }
 
     def render(self):
