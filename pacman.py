@@ -81,7 +81,6 @@ class Pacman(Entity):
 
     # update - takes action from agent - returns position and direction
     def update(self, dt, action=None, humaninput=False):
-        self.testGo()	
         self.sprites.update(dt)
         self.position += self.directions[self.direction]*self.speed*dt
         # inject action from agent
