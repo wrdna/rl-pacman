@@ -1,8 +1,13 @@
+# This agent implements Q deep learning to train a model to play pacman
+# Written by RK, based on snake game model implemented by Patrick Loeber on freeCodeCamp.org YouTube
+# Source Video https://www.youtube.com/watch?v=L8ypSXwyBds&t=3s&ab_channel=freeCodeCamp.org
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import os
+
+# device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 class Linear_QNet(nn.Module):
 
@@ -12,9 +17,10 @@ class Linear_QNet(nn.Module):
         self.linear2 = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
-        x = F.relu(self.linear1(x))
+        # activation function
+        x = F.relu(self.linear1(x)) 
         # x = F.leaky_relu(self.linear1(x))
-        x = self.linear2(x)
+        x = self.linear2(x) # applies to net
         return x
     
     def save(self, file_name='model.pth'):
@@ -24,6 +30,10 @@ class Linear_QNet(nn.Module):
 
         file_name = os.path.join(model_folder_path, file_name)
         torch.save(self.state_dict(), file_name)
+
+    def load(self, file_name='model.pth'):
+        file_name = os.path.join("./model", file_name)
+        torch.load(file_name)
 
 
 class QTrainer:

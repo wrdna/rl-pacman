@@ -1,5 +1,6 @@
-# Written By RK
-# This agent implements Q learning to train a model to play pacman
+# This agent implements Q deep learning to train a model to play pacman
+# Written by RK, based on snake game model implemented by Patrick Loeber on freeCodeCamp.org YouTube
+# Source Video https://www.youtube.com/watch?v=L8ypSXwyBds&t=3s&ab_channel=freeCodeCamp.org
 import torch
 import random
 import numpy as np
@@ -8,7 +9,6 @@ from agentmodel import Linear_QNet, QTrainer
 from helper import plot
 from game import GameController
 from constants import LEFT, RIGHT, UP, DOWN, STOP, SCATTER, CHASE, FREIGHT, SPAWN, DIRECTION_MAP
-
 
 # Define Rewards
 Rewards = {
@@ -30,12 +30,12 @@ Settings = {
 }
 
 # agent params
-MAX_MEMORY = 1_000_000
-BATCH_SIZE = 5000
+MAX_MEMORY = 100_000
+BATCH_SIZE = 1000
 LR = 0.001
 
 # adds randomness into training early and decays over time to 0
-RAND_SIZE = 200
+RAND_SIZE = 300
 
 class Agent:
 
@@ -44,7 +44,7 @@ class Agent:
         self.epsilon = 0 # randomness
         self.gamma = 0.9   # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)
-        self.model = Linear_QNet(13, 1024, 4)
+        self.model = Linear_QNet(13, 300, 4)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
         # debugging

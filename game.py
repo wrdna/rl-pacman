@@ -12,9 +12,6 @@ from text import TextGroup
 from sprites import LifeSprites
 from sprites import MazeSprites
 from mazedata import MazeData
-# AI imports
-from enum import Enum
-import random
 
 class GameController(object):
     def __init__(self, rewards=None, settings=None):
@@ -40,10 +37,6 @@ class GameController(object):
         self.rendernodes = False
         # AI 
         self.frame_iteration = 0
-        # self.humaninput = False
-        # self.disableghosts = True
-        # self.disablelevels = True
-        # self.fps = 30 # game tickrate
         self.setSettings(settings)
 
         # set rewards
@@ -86,6 +79,8 @@ class GameController(object):
         self.mazedata.obj.connectHomeNodes(self.nodes)
         self.pacman = Pacman(self.nodes.getNodeFromTiles(*self.mazedata.obj.pacmanStart))
         self.pellets = PelletGroup(self.mazedata.obj.name+".txt")
+
+        # print(f'Pellet Count: {len(self.pellets.pelletList)}')
 
         # disable ghosts
         if self.disableghosts:

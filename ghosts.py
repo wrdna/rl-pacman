@@ -67,6 +67,10 @@ class Ghost(Entity):
         self.directionMethod = self.goalDirection
         self.homeNode.denyAccess(DOWN, self)
 
+    def DrawPath(self, screen):
+        pygame.draw.line(screen, self.color, (self.position.x, self.position.y), (self.goal.x, self.goal.y), width=2)
+        pygame.display.flip()
+
     def drawPath(self, screen):
         if not self.draw: return
         if self.linear:
